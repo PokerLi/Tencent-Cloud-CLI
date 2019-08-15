@@ -1,1 +1,5 @@
 # Tencent-Cloud-CLI
+将自己的secret_id和secret_key添加到脚本开头的位置
+项目id和名称需要自己定义，在get_create_project_id_info函数中修改
+镜像的系统也是由自己手动获取，将自己常用的镜像写在get_create_image_info函数
+在get_greate_loginsettings函数中修改ssh密钥为自己账号中的密码
