@@ -1,0 +1,323 @@
+# -*- coding: utf8 -*-
+import base64,hashlib,hmac,time,random,requests,sys,json
+secret_id = ""
+secret_key = ""
+def get_string_to_sign(method, endpoint, params):
+    s = method + endpoint + "/?"
+    query_str = "&".join("%s=%s" % (k, params[k]) for k in sorted(params))
+    return s + query_str
+
+def sign_str(key, s, method):
+    hmac_str = hmac.new(key.encode("utf8"), s.encode("utf8"), method).digest()
+    return base64.b64encode(hmac_str)
+
+def colour(num,*message):
+    if num == -1:
+        print('\033[1;33;41m%s \033[0m' % message)
+    else:
+        print('\033[1;33;41m%d. \033[0m' % num,end='') #打印项目序号，结尾不换行
+        print('\033[1;33;41m%s  \033[0m' % message)    #打印项目
+
+def get_create_project_id_info():
+    num = 1
+    print (num)
+    project_id = {'研发':1142021,'运维':1142020,'QA':1126842,'PSD':1126842,'售前':1116945,'Demo':1116944}
+    project = ['运维','研发','售前','QA','PSD','Demo']
+    for i in project:
+        colour(num,i)
+        num+=1
+    select = int(input("请选择项目: "))
+    create_project = (project[(select-1)])
+    global create_project_id                                        #获取项目ID
+    create_project_id = project_id[create_project]
+    return create_project_id    
+def get_create_region_info():
+    num = 1
+    region = ['ap-shanghai','ap-beijing','ap-chongqing','ap-hongkong']
+    for i in region:
+        colour(num,i)
+        num+=1
+    select = int(input("请选择区域: "))
+    global create_region                                              #获取区域
+    create_region = (region[(select-1)])
+    return create_region
+def get_create_zone_info(region):
+    endpoint = "cvm.tencentcloudapi.com"
+    data = {
+            'Action' : 'DescribeZones',
+            'Nonce' : random.randint(0, 1000),
+            'Region' : region,
+            'SecretId' : secret_id,
+            'Timestamp' : int(time.time()),
+            'Version': '2017-03-12'
+        }
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    zone = []
+    num = 1
+    for i in text['Response']['ZoneSet']:
+        zone.append(i['Zone'])
+        colour(num,i)
+        num+=1
+    select = int(input("请选择可用区: "))
+    global create_zone                                                   #获取可用区
+    create_zone = (zone[(select-1)])
+    return create_zone
+def get_create_image_info():
+    num = 1
+    image=[
+    {'name':'CentOS 7.5 64位','value':'img-oikl1tzv'},
+    {'name':'CentOS 7.4 64位','value':'img-8toqc6s3'},
+    {'name':'CentOS 7.3 64位','value':'img-dkwyg6sr'},
+    {'name':'Debian 9.0 64位','value':'img-6rrx0ymd'},
+    {'name':'Debian 8.2 64位','value':'img-hi93l4ht'},
+    {'name':'SUSE Linux Enterprise Server 12 64位','value':'img-d5304izr'},
+    {'name':'Ubuntu Server 16.04.1 LTS 64位','value':'img-pyqx34y1'},
+    {'name':'Ubuntu Server 14.04.1 LTS 64位','value':'img-3wnd9xpl'}
+    ]
+    for i in image:
+        colour(num,i['name'])
+        num+=1
+    select = int(input("请选择镜像: "))
+    global create_image_id                                                   #获取镜像ID
+    create_image_id = (image[(select-1)]['value'])
+    return create_image_id
+def get_instance_type(region,zone):
+    num = 1
+    if create_region == 'ap-chongqing':
+        type = 'SA1'
+    elif create_region == 'ap-hongkong':
+        type = 'S2'     
+    else:
+        if create_zone == 'ap-beijing-1' or create_zone == 'ap-beijing-2':
+            type = 'S2'
+        else:
+            type = 'S4'
+    endpoint = "cvm.tencentcloudapi.com"
+    data = {
+            'Action' : 'DescribeInstanceTypeConfigs',
+            'Nonce' : random.randint(0, 1000),
+            'Region' : region,
+            'SecretId' : secret_id,
+            'Timestamp' : int(time.time()),
+            'Version' : '2017-03-12',
+            'Filters.0.Name' : 'zone',
+            'Filters.0.Values.0' : zone,
+            'Filters.1.Name' : 'instance-family',
+            'Filters.1.Values.0' : type  #这里用if判断region，重庆s3，其他s4
+           
+        }
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    for i in text['Response']['InstanceTypeConfigSet']:
+        info = (str(i['CPU'])+'C',str(i['Memory'])+'G')    
+        colour(num,info)
+        num+=1
+    select = int(input("请选择实例类型: "))
+    global create_instance_type     #获取实例类型
+    create_instance_type = (text['Response']['InstanceTypeConfigSet'][(select-1)]['InstanceType'])
+    return create_instance_type
+def get_dist_type():
+    num = 1
+    disk_type=[{'name':'普通云硬盘','value':'CLOUD_PREMIUM'},{'name':'固态硬盘','value':'CLOUD_SSD'}]         
+    for i in  disk_type:
+        colour(num,i['name'])
+        num+=1
+    select = int(input("请选择磁盘类型: "))
+    global create_disk_type                                                   #获取磁盘类型
+    create_disk_type = (disk_type[(select-1)]['value'])
+    return create_disk_type
+def get_system_dist_size():
+    #global create_disk_size                 #获取系统磁盘大小
+    system_disk_size=int(input("\033[1;33;41m请输入磁盘大小（最小为50，或者是50的倍数）:  \033[0m")) 
+    return system_disk_size
+
+def get_data_dist_size(type):
+    list_size=['DataDisks.0.DiskSize','DataDisks.1.DiskSize','DataDisks.2.DiskSize','DataDisks.3.DiskSize','DataDisks.4.DiskSize']
+    list_type=['DataDisks.0.DiskType','DataDisks.1.DiskType','DataDisks.2.DiskType','DataDisks.3.DiskType','DataDisks.4.DiskType']
+    while True:
+        select = str(input("\033[1;33;41m是否创建数据盘(y/n) : \033[0m"))
+        if select == 'y':
+            size = int(input("\033[1;33;41m请输入磁盘大小（最小为50，或者是50的倍数）:  \033[0m")) 
+            params[(list_size[0])] = size
+            params[(list_type[0])] = type
+            list_type.pop(0)
+            list_size.pop(0)
+        else:
+            break
+
+def get_vpc_id(region):
+    num = 1
+    endpoint = "vpc.tencentcloudapi.com"
+    data = {
+            'Action': 'DescribeVpcs',
+            'Nonce': random.randint(0, 1000),
+            'Region': region,
+            'SecretId': secret_id,
+            'Timestamp': int(time.time()),
+            'Version': "2017-03-12"
+        }
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    for i in text['Response']['VpcSet']:
+        info = (i['VpcName'],i['CidrBlock'])    
+        colour(num,info)
+        num+=1
+    select = int(input("请选择VPC: "))
+    global create_vpc_id     #获取VPC ID
+    create_vpc_id = (text['Response']['VpcSet'][(select-1)]['VpcId'])
+    return create_vpc_id
+def get_subenet_id(region,zone,id):
+    num = 1
+    endpoint = "vpc.tencentcloudapi.com"
+    data = {
+            'Action': 'DescribeSubnets',
+            'Nonce': random.randint(0, 1000),
+            'Region': region,
+            'SecretId': secret_id,
+            'Timestamp': int(time.time()),
+            'Version': "2017-03-12",
+            'Filters.0.Name' : 'zone',
+            'Filters.0.Values.0' : zone,
+            'Filters.1.Name' : 'vpc-id',
+            'Filters.1.Values.0' : id
+        }
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    #print (text)
+    for i in text['Response']['SubnetSet']:
+        info = (i['SubnetName'],i['CidrBlock']) 
+        colour(num,info)
+        num+=1
+    select = int(input("请选择子网络: "))
+    global create_subenet_id     #获取subenet ID
+    create_subenet_id = (text['Response']['SubnetSet'][(select-1)]['SubnetId'])
+    return create_subenet_id
+def get_security_group_id(region,project_id):
+    endpoint = "vpc.tencentcloudapi.com"
+    data = {
+            'Action': 'DescribeSecurityGroups',
+            'Nonce': random.randint(0, 1000),
+            'Region': region,
+            'SecretId': secret_id,
+            'Timestamp': int(time.time()),
+            'Version': "2017-03-12",
+            'Filters.0.Name': 'project-id',
+            'Filters.0.Values.0': project_id
+        }
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    list=['SecurityGroupIds.0','SecurityGroupIds.1','SecurityGroupIds.2']
+    while True:
+        num = 1
+        select = str(input("\033[1;33;41m是否选择安全组(y/n) : \033[0m"))
+        if select == 'y': 
+            for i in text['Response']['SecurityGroupSet']:
+                colour(num,i['SecurityGroupName'])
+                num+=1
+            select = int(input("请选择安全组: "))
+            global create_security_id     #获取Security ID
+            create_security_id = (text['Response']['SecurityGroupSet'][(select-1)]['SecurityGroupId'])
+            params[(list[0])] = create_security_id
+            list.pop(0)
+        else:
+            break
+
+
+def get_greate_loginsettings():
+    colour(1,'密钥登陆')
+    colour(2,'密码登陆')
+    select = str(input("\033[1;33;41m请选择登陆方式 : \033[0m"))
+    if select == '1':
+        params['LoginSettings.KeyIds.0'] = 'skey-4x41i3hz'  
+    else:
+        passwd = str(input("\033[1;33;41m请输入密码 : \033[0m"))
+        params['LoginSettings.Password'] = passwd
+
+def get_instance_count():
+    instance_num = int(input("\033[1;33;41m请选择开启机器数量 : \033[0m"))
+    if instance_num > 20:
+        instance_num = 20
+    params['InstanceCount'] = instance_num
+
+def get_instance_name():
+    instance_name = str(input("\033[1;33;41m请输入机器名称（console界面显示名称） : \033[0m"))
+    params['InstanceName'] = instance_name
+
+def get_inter_bandwidth():
+    bandwidth = input("\033[1;33;41m请输入机器网络带宽（1-100） : \033[0m")
+    params['InternetAccessible.InternetMaxBandwidthOut'] = bandwidth
+
+def get_instance_ip(region,instanceid):
+    time.sleep(10)
+    endpoint = "cvm.tencentcloudapi.com"
+    data = {
+            'Action': 'DescribeInstances',
+            'Nonce': random.randint(0, 1000),
+            'Region': region,
+            'SecretId': secret_id,
+            'Timestamp': int(time.time()),
+            'Version': "2017-03-12"
+        }
+    for i in range(len(instanceid)):
+        data['InstanceIds.'+str(i)] = instanceid[i]
+    s = get_string_to_sign("GET", endpoint, data)
+    data["Signature"] = sign_str(secret_key, s, hashlib.sha1)                      
+    resp = requests.get("https://" + endpoint, params=data)
+    text = json.loads(resp.text)
+    for i in text['Response']['InstanceSet']:
+        print ('公网IP：',str(i['PublicIpAddresses']),'内网IP：',str(i['PrivateIpAddresses']))
+
+def create_instance():
+    endpoint = "cvm.tencentcloudapi.com"
+    s = get_string_to_sign("GET", endpoint, params)
+    params["Signature"] = sign_str(secret_key, s, hashlib.sha1)
+    res = requests.get("https://" + endpoint, params=params)
+    instances_id = res.json()['Response'].get("InstanceIdSet")
+    print (instances_id)
+    #text = json.loads(res.text)
+    #print (text)
+    get_instance_ip(create_region,instances_id)
+
+
+
+
+global params
+params = {
+    "Action": "RunInstances",
+    "Version": "2017-03-12",
+    "Timestamp": int(time.time()),
+    "Nonce": random.randint(0, 1000),
+    "SecretId": secret_id
+}
+
+  
+params['Placement.ProjectId'] = get_create_project_id_info()
+params['Region'] = get_create_region_info()
+params['Placement.Zone'] = get_create_zone_info(create_region)
+params['ImageId'] = get_create_image_info()
+params['InstanceType'] = get_instance_type(create_region,create_zone)
+params['SystemDisk.DiskType'] = get_dist_type()
+params['SystemDisk.DiskSize'] = get_system_dist_size()
+get_data_dist_size(create_disk_type)
+params['VirtualPrivateCloud.VpcId'] = get_vpc_id(create_region)
+params['VirtualPrivateCloud.SubnetId'] = get_subenet_id(create_region,create_zone,create_vpc_id)
+get_security_group_id(create_region,create_project_id)
+get_greate_loginsettings()
+get_instance_count()
+get_instance_name()
+get_inter_bandwidth()
+create_instance()
+
+
+
