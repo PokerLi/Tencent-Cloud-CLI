@@ -18,7 +18,7 @@ def colour(num,*message):
         print('\033[1;33;41m%d. \033[0m' % num,end='') #打印项目序号，结尾不换行
         print('\033[1;33;41m%s  \033[0m' % message)    #打印项目
 
-def get_create_project_id_info():
+def get_project_id_info():
     num = 1
     print (num)
     project_id = {'研发':1142021,'运维':1142020,'QA':1126842,'PSD':1126842,'售前':1116945,'Demo':1116944}
@@ -31,7 +31,7 @@ def get_create_project_id_info():
     global create_project_id                                        #获取项目ID
     create_project_id = project_id[create_project]
     return create_project_id    
-def get_create_region_info():
+def get_region_info():
     num = 1
     region = ['ap-shanghai','ap-beijing','ap-chongqing','ap-hongkong']
     for i in region:
@@ -41,7 +41,7 @@ def get_create_region_info():
     global create_region                                              #获取区域
     create_region = (region[(select-1)])
     return create_region
-def get_create_zone_info(region):
+def get_zone_info(region):
     endpoint = "cvm.tencentcloudapi.com"
     data = {
             'Action' : 'DescribeZones',
@@ -65,7 +65,7 @@ def get_create_zone_info(region):
     global create_zone                                                   #获取可用区
     create_zone = (zone[(select-1)])
     return create_zone
-def get_create_image_info():
+def get_image_info():
     num = 1
     image=[
     {'name':'CentOS 7.5 64位','value':'img-oikl1tzv'},
@@ -259,7 +259,7 @@ def get_inter_bandwidth():
     params['InternetAccessible.InternetMaxBandwidthOut'] = bandwidth
 
 def get_instance_ip(region,instanceid):
-    time.sleep(10)
+    #time.sleep(10)
     endpoint = "cvm.tencentcloudapi.com"
     data = {
             'Action': 'DescribeInstances',
@@ -276,18 +276,34 @@ def get_instance_ip(region,instanceid):
     resp = requests.get("https://" + endpoint, params=data)
     text = json.loads(resp.text)
     for i in text['Response']['InstanceSet']:
-        print ('公网IP：',str(i['PublicIpAddresses']),'内网IP：',str(i['PrivateIpAddresses']))
+        if str(i['PublicIpAddresses']) != "None":
+            print ('公网IP：',str(i['PublicIpAddresses']),'内网IP：',str(i['PrivateIpAddresses']))
+            global instances_id
+            instances_id.pop(0)
+        else:
+            break
+
+def set_timeraction():
+    terminal_time = str(input("\033[1;33;41m请输入机器终止时间（2019-8-16 12:40:00） : \033[0m"))
+    params['ActionTimer.Externals.ReleaseAddress'] = 'true'
+    params['ActionTimer.TimerAction'] = 'TerminateInstances'
+    params['ActionTimer.ActionTime'] = terminal_time
+
 
 def create_instance():
     endpoint = "cvm.tencentcloudapi.com"
     s = get_string_to_sign("GET", endpoint, params)
     params["Signature"] = sign_str(secret_key, s, hashlib.sha1)
     res = requests.get("https://" + endpoint, params=params)
+    global instances_id
     instances_id = res.json()['Response'].get("InstanceIdSet")
     print (instances_id)
     #text = json.loads(res.text)
     #print (text)
-    get_instance_ip(create_region,instances_id)
+    while True:
+        get_instance_ip(create_region,instances_id)
+        if len(instances_id) == 0:
+            break
 
 
 
@@ -302,10 +318,10 @@ params = {
 }
 
   
-params['Placement.ProjectId'] = get_create_project_id_info()
-params['Region'] = get_create_region_info()
-params['Placement.Zone'] = get_create_zone_info(create_region)
-params['ImageId'] = get_create_image_info()
+params['Placement.ProjectId'] = get_project_id_info()
+params['Region'] = get_region_info()
+params['Placement.Zone'] = get_zone_info(create_region)
+params['ImageId'] = get_image_info()
 params['InstanceType'] = get_instance_type(create_region,create_zone)
 params['SystemDisk.DiskType'] = get_dist_type()
 params['SystemDisk.DiskSize'] = get_system_dist_size()
@@ -317,6 +333,7 @@ get_greate_loginsettings()
 get_instance_count()
 get_instance_name()
 get_inter_bandwidth()
+set_timeraction()
 create_instance()
 
 
