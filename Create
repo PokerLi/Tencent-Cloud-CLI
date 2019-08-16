@@ -31,6 +31,7 @@ def get_project_id_info():
     global create_project_id                                        #获取项目ID
     create_project_id = project_id[create_project]
     return create_project_id    
+
 def get_region_info():
     num = 1
     region = ['ap-shanghai','ap-beijing','ap-chongqing','ap-hongkong']
@@ -41,6 +42,7 @@ def get_region_info():
     global create_region                                              #获取区域
     create_region = (region[(select-1)])
     return create_region
+
 def get_zone_info(region):
     endpoint = "cvm.tencentcloudapi.com"
     data = {
@@ -65,6 +67,7 @@ def get_zone_info(region):
     global create_zone                                                   #获取可用区
     create_zone = (zone[(select-1)])
     return create_zone
+
 def get_image_info():
     num = 1
     image=[
@@ -84,6 +87,7 @@ def get_image_info():
     global create_image_id                                                   #获取镜像ID
     create_image_id = (image[(select-1)]['value'])
     return create_image_id
+
 def get_instance_type(region,zone):
     num = 1
     if create_region == 'ap-chongqing':
@@ -121,6 +125,7 @@ def get_instance_type(region,zone):
     global create_instance_type     #获取实例类型
     create_instance_type = (text['Response']['InstanceTypeConfigSet'][(select-1)]['InstanceType'])
     return create_instance_type
+
 def get_dist_type():
     num = 1
     disk_type=[{'name':'普通云硬盘','value':'CLOUD_PREMIUM'},{'name':'固态硬盘','value':'CLOUD_SSD'}]         
@@ -131,6 +136,7 @@ def get_dist_type():
     global create_disk_type                                                   #获取磁盘类型
     create_disk_type = (disk_type[(select-1)]['value'])
     return create_disk_type
+
 def get_system_dist_size():
     #global create_disk_size                 #获取系统磁盘大小
     system_disk_size=int(input("\033[1;33;41m请输入磁盘大小（最小为50，或者是50的倍数）:  \033[0m")) 
@@ -173,6 +179,7 @@ def get_vpc_id(region):
     global create_vpc_id     #获取VPC ID
     create_vpc_id = (text['Response']['VpcSet'][(select-1)]['VpcId'])
     return create_vpc_id
+
 def get_subenet_id(region,zone,id):
     num = 1
     endpoint = "vpc.tencentcloudapi.com"
@@ -201,6 +208,7 @@ def get_subenet_id(region,zone,id):
     global create_subenet_id     #获取subenet ID
     create_subenet_id = (text['Response']['SubnetSet'][(select-1)]['SubnetId'])
     return create_subenet_id
+
 def get_security_group_id(region,project_id):
     endpoint = "vpc.tencentcloudapi.com"
     data = {
@@ -232,7 +240,6 @@ def get_security_group_id(region,project_id):
             list.pop(0)
         else:
             break
-
 
 def get_greate_loginsettings():
     colour(1,'密钥登陆')
@@ -284,11 +291,13 @@ def get_instance_ip(region,instanceid):
             break
 
 def set_timeraction():
-    terminal_time = str(input("\033[1;33;41m请输入机器终止时间（2019-8-16 12:40:00） : \033[0m"))
-    params['ActionTimer.Externals.ReleaseAddress'] = 'true'
-    params['ActionTimer.TimerAction'] = 'TerminateInstances'
-    params['ActionTimer.ActionTime'] = terminal_time
-
+    terminal_time = str(input("\033[1;33;41m请输入机器终止时间（2019-8-16 12:40:00）(直接回车不添加终止功能) : \033[0m"))
+    if  terminal_time == "":
+        pass
+    else:
+        params['ActionTimer.Externals.ReleaseAddress'] = 'true'
+        params['ActionTimer.TimerAction'] = 'TerminateInstances'
+        params['ActionTimer.ActionTime'] = terminal_time
 
 def create_instance():
     endpoint = "cvm.tencentcloudapi.com"
@@ -317,7 +326,6 @@ params = {
     "SecretId": secret_id
 }
 
-  
 params['Placement.ProjectId'] = get_project_id_info()
 params['Region'] = get_region_info()
 params['Placement.Zone'] = get_zone_info(create_region)
